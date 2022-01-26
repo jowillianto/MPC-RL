@@ -28,7 +28,7 @@ bou_b     = 0
 from mpc.control import ContinuousCartPole
 
 obj   = ContinuousCartPole(
-  pred_horizon = 25, 
+  pred_horizon = 30, 
   control_step = 200
 )
 action_arr  = np.zeros(1000, dtype = np.float32)
@@ -78,7 +78,7 @@ print("Succesful iter: %s" % suc_b)
 print("Time taken : %s" % (end_time - begin_time))
 print('Average time per iteration : %s' % ((end_time - begin_time).total_seconds() / 100))
 
-name  = 'pred25cftv'
+name  = 'pred30'
 os.mkdir(f'./mpc_graph/{name}')
 plt.clf()
 plt.plot(theta_arr[:,0])
