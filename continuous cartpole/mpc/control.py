@@ -49,16 +49,20 @@ class ContinuousCartPole(Model):
     model     = cs.Function('m', [st, ct], [nst])
 
     l         = self._PredHor_
-    X         = cs.SX.sym('X', 4, l+1)
+    X         = cs.SX.sym('X', 4, l + 1)
     cl        = cs.SX.sym('C', 1, l)
-    iv        = cs.SX.sym('P', 8)
+    iv        = cs.SX.sym('P', 9)
     g         = X[:, 0] - iv[:4]
     c_f = 0
     for i in range(1, l + 1):
       init_condition    = X[:, i - 1]
       end_condition     = model(init_condition, cl[0, i - 1])
       g                 = cs.vertcat(g, X[:, i] - end_condition)
-      c_f = c_f + end_condition[2, 0]**2 + end_condition[1, 0]**2
+      c_f = c_f + end_condition[2, 0]**2 + 1e-3 * end_condition[1, 0]**2 + 0 * end_condition[0, 0]**2
+      if(i == 1):
+        c_f   = c_f + 1e-4 * (cl[0, i - 1] - iv[8])**2
+      else:
+        c_f   = c_f + 1e-4 * (cl[0, i - 1] - cl[0, i - 2])**2
     #formulate nlp
     opt_vars  = cs.vertcat(
       X.reshape((-1, 1)), cl.reshape((-1, 1))
@@ -74,8 +78,8 @@ class ContinuousCartPole(Model):
     self.ubx[2*(l+1):3*(l+1)]  = 0.2
     self.lbx[3*(l+1):4*(l+1)]   = -cs.inf
     self.ubx[3*(l+1):4*(l+1)]   = cs.inf
-    self.lbx[4*(l+1):]  = -10
-    self.ubx[4*(l+1):]  = 10
+    self.lbx[4*(l+1):]  = -1
+    self.ubx[4*(l+1):]  = 1
     self.lbg = cs.DM.zeros((4 * (l + 1), 1))
     self.ubg = cs.DM.zeros((4 * (l + 1), 1))
     self.lbg[:]   = -1e-10
@@ -122,7 +126,7 @@ class ContinuousCartPole(Model):
   
   def predict(self):
     x, v, t, w  = self.cur_state()
-    params  = [x, v, t, w, 0, 0, 0, 0]
+    params  = [x, v, t, w, 0, 0, 0, 0, self.cur_act[0]]
     l   = self._PredHor_
     x0  = [x, v, t, w]
     x0  = cs.vertcat(x0, list(self.obs_mem.flatten()[4:]), [0, 0, 0, 0])

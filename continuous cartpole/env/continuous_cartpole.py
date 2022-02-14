@@ -13,7 +13,7 @@ class ContinuousCartPoleEnv(CartPoleEnv):
     self.force_mag  = action
     obs, rew, done, info = super().step(action = 1)
     self.steps += 1
-    if self.steps > 2000:
+    if self.steps > 500  :
       return obs, rew, True, info
     return obs, rew, done, info
   

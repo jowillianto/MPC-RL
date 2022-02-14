@@ -31,8 +31,8 @@ obj   = ContinuousCartPole(
   pred_horizon = 30, 
   control_step = 200
 )
-action_arr  = np.zeros(1000, dtype = np.float32)
-theta_arr   = np.zeros((1000, 4), dtype = np.float32)
+action_arr  = np.zeros(100, dtype = np.float32)
+theta_arr   = np.zeros((100, 4), dtype = np.float32)
 begin_time  = datetime.datetime.now()
 if not os.path.isdir('./mpc_graph'):
   os.mkdir('./mpc_graph')
@@ -53,7 +53,7 @@ for i in range(eval_n):
     obs, rew, _, info = env.step(action)
     obj.save_state(np.array(obs, dtype = np.float32))
     steps += 1
-    if abs(obs[2]) > 0.209 or abs(obs[0]) > 2.4 or steps == 1000:
+    if abs(obs[2]) > 0.209 or abs(obs[0]) > 2.4 or steps == 100:
       break
   time_arr.append(steps)
   if abs(obs[2]) > 0.209:
@@ -78,7 +78,7 @@ print("Succesful iter: %s" % suc_b)
 print("Time taken : %s" % (end_time - begin_time))
 print('Average time per iteration : %s' % ((end_time - begin_time).total_seconds() / 100))
 
-name  = 'pred30'
+name  = f'pred30vtFsmth{datetime.datetime.now()}'
 os.mkdir(f'./mpc_graph/{name}')
 plt.clf()
 plt.plot(theta_arr[:,0])
@@ -96,5 +96,18 @@ plt.savefig(f'./mpc_graph/{name}/w.png')
 plt.clf()
 plt.plot(action_arr)
 plt.savefig(f'./mpc_graph/{name}/F.png')
+
+fig, grp= plt.subplots(2, 3)
+grp[0, 0].plot(action_arr)
+grp[0, 0].set_title('Force')
+grp[1, 0].plot(theta_arr[:, 2])
+grp[1, 0].set_title('Theta')
+grp[1, 1].plot(theta_arr[:, 1])
+grp[1, 1].set_title('Velocity')
+grp[0, 2].plot(theta_arr[:, 3])
+grp[0, 2].set_title('Omega')
+grp[0, 1].plot(theta_arr[:, 0])
+grp[0, 1].set_title('Displacement')
+plt.show()
 
 env.close()

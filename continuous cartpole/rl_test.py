@@ -2,6 +2,7 @@ import time
 from env.continuous_cartpole import ContinuousCartPoleEnv
 from ddpg.ddpg import ContinuousCartpole
 import torch
+import argparse
 
 env   = ContinuousCartPoleEnv()
 
@@ -12,7 +13,12 @@ obj   = ContinuousCartpole(
   tau   = 1, eps = 1, gamma = 0.99, actor_lr = 1, critic_lr = 1, eps_decay = 1, mem_size = 1
 )
 
-obj.load_net('./200_actor.pt', './200_critic.pt')
+parser  = argparse.ArgumentParser()
+parser.add_argument('actor_path')
+parser.add_argument('critic_path')
+args    = parser.parse_args()
+
+obj.load_net(args.actor_path, args.critic_path)
 
 import json
 cfg_file  = open('./config.json')

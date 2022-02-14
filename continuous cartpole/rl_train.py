@@ -8,7 +8,7 @@ import datetime
 
 env   = ContinuousCartPoleEnv()
 obj   = ContinuousCartpole(
-  mem_size  = 30000, gamma = 0.99, eps_decay = 0.9999, eps = 2.0, tau = 1e-3,
+  mem_size  = 30000, gamma = 0.99, eps_decay = 0.999, eps = 2.0, tau = 5e-4,
   actor_lr  = 1e-4, critic_lr = 1e-4
 )
 
@@ -49,13 +49,13 @@ for i in range(train_epoch):
       torch.tensor(obs, dtype = torch.float32)
     )
     nobs, _, done, info = env.step(action)
-    rew   = 0.05 - obs[2]**2
+    rew   = 0.15 - nobs[2]**2 - 1e-3 * nobs[1]**2 - 1e-2 * nobs[0]**2
     obj.save_state(
       obs   = torch.tensor(obs, dtype = torch.float32), 
       n_obs = torch.tensor(nobs, dtype = torch.float32), 
       action  = torch.tensor(action, dtype = torch.float32), 
       reward  = rew,  
-      terminal = done 
+      terminal = True if abs(nobs[2]) > 0.209 or abs(nobs[0]) > 2.4 else False
     )
     duration += 1
     reward += rew
@@ -72,7 +72,7 @@ for i in range(train_epoch):
   reward_accum  = 0
   value_accum   = 0
   duration_arr.append(duration)
-  if i % print_freq == 0:
+  if i % print_freq == 0: 
     print("==============================================")
     print(f"Iteration {i}")
     print(f'Critic_loss : {round(critic_loss, 3)}')

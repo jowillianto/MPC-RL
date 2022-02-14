@@ -8,14 +8,14 @@ class Actor(torch.nn.Module):
     net_width : int = 32, input_size : int = 4, output_size : int = 1
   ):
     super().__init__()
-    self.norm_layer   = torch.nn.BatchNorm1d(input_size)
+    # self.norm_layer   = torch.nn.BatchNorm1d(input_size)
     self.first_layer  = torch.nn.Linear(input_size, net_width)
     self.first_act    = torch.nn.LeakyReLU()
     self.inter_layer  = torch.nn.Linear(net_width, net_width)
     self.inter_act    = torch.nn.LeakyReLU()
     self.final_layer  = torch.nn.Linear(net_width, output_size)
   def forward(self, x):
-    x   = self.norm_layer(x)
+    #x   = self.norm_layer(x)
     x   = self.first_layer(x)
     x   = self.first_act(x)
     x   = self.inter_layer(x)
@@ -36,8 +36,8 @@ class Critic(torch.nn.Module):
     self.final_layer  = torch.nn.Linear(net_width, output_size)
     self.obs_size     = obs_size
   def forward(self, obs, action):
-    x   = self.norm_layer(obs)
-    x   = torch.cat((x, action), dim = -1)
+    #x   = self.norm_layer(obs)
+    x   = torch.cat((obs, action), dim = -1)
     x   = self.first_layer(x)
     x   = self.first_act(x)
     x   = self.inter_layer(x)
