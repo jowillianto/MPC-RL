@@ -14,12 +14,12 @@ obj = CartPole(
 )
 obs = env.reset()
 
-obj.load_net('./iter_7500.pt')
+obj.load_net('./iter_43700.pt')
 reward  = 0
 accum   = []
-eps     = 10
+eps     = 100
 use_sleep = False
-render  = True
+render  = False
 ang_b   = 0
 bou_b   = 0
 suc_b   = 0
@@ -28,7 +28,7 @@ for i in range(eps):
   reward = 0
   obs   = env.reset()  
   while not done:
-    if render and i % 1 == 0:
+    if render and i % 10 == 0:
       env.render()
     action  = obj.net_action(np.array([obs], dtype = np.float32))
     obs, rew, done, info = env.step(action)

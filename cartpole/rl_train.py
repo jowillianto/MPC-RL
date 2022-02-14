@@ -3,6 +3,7 @@ import numpy as np
 
 from rl.control import CartPole
 import os
+import matplotlib.pyplot as plt
 
 env = gym.make('CartPole-v0')
 obj = CartPole(
@@ -16,11 +17,11 @@ obs = env.reset()
 
 reward  = 0
 accum   = []
-eps     = 10000000
+eps     = int(1e6)
 step    = 0
 loss    = 0
 batch_size  = 64
-target_update = 200
+target_update = 500
 repeat  = 10
 
 try:
@@ -30,6 +31,7 @@ except:
 
 obj.update_target()
 
+loss_graph  = np.zeros(eps, dtype = np.float32)
 for i in range(eps):
   done    = False
   reward  = 0
@@ -49,6 +51,7 @@ for i in range(eps):
     if step > batch_size:
       for j in range(repeat):
         loss += obj.train(batch_size = batch_size)
+
     if dur == 200:
       done = False
     obj.decay_explore()
@@ -56,13 +59,13 @@ for i in range(eps):
   #Reset env and observations
   obs   = env.reset()
   accum.append(reward)
+  loss_graph[i] = loss
   if i % 10 == 0:
     print("Iteration %.1f : %.3f, %.3f, %.3f, %.3f" % (i, sum(accum) / len(accum), loss, obj._Eps_, dur))
-    loss = 0
     accum = []
   if i % target_update == 0:
     obj.update_target()
-
+  loss          = 0
   #Testing
   if i % 100 == 0:
     accumulator = []
@@ -80,3 +83,6 @@ for i in range(eps):
     print("Test at iteration %.1f : %.3f" % (i, sum(accumulator) / len(accumulator)))
     print('===========================================')
     obj.save_net(f'./model/iter_{i}.pt')
+
+plt.plot(loss_graph)
+plt.savefig('./loss.png')
