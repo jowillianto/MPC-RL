@@ -47,13 +47,13 @@ for i in range(train_epoch):
   while not done:
     action  = obj.action(
       torch.tensor(obs, dtype = torch.float32)
-    )
+    ).item()
     nobs, _, done, info = env.step(action)
     rew   = 0.15 - nobs[2]**2 - 1e-3 * nobs[1]**2 - 1e-2 * nobs[0]**2
     obj.save_state(
       obs   = torch.tensor(obs, dtype = torch.float32), 
       n_obs = torch.tensor(nobs, dtype = torch.float32), 
-      action  = torch.tensor(action, dtype = torch.float32), 
+      action  = torch.tensor(action, dtype = torch.float32),
       reward  = rew,  
       terminal = True if abs(nobs[2]) > 0.209 or abs(nobs[0]) > 2.4 else False
     )
@@ -63,7 +63,7 @@ for i in range(train_epoch):
     obs   = nobs
     steps += 1
     if steps > grace_count:
-      loss  = obj.train(epochs = 30, batch_size = 64)
+      loss  = obj.train(epochs = 5, batch_size = 64)
       critic_loss += loss
       value_accum += loss
   obj.decay_epsilon()
@@ -79,6 +79,7 @@ for i in range(train_epoch):
     print(f'Duration    : {round(sum(duration_arr) / print_freq, 3)}')
     print(f'Reward      : {round(reward, 3)}')
     print(f'Explore rate: {round(obj._eps, 3)}')
+    print(f'Last action : {action}')
     print('==============================================')
 
     duration_arr  = []
@@ -96,7 +97,7 @@ for i in range(train_epoch):
           pass
         action  = obj.net_action(
           torch.tensor(obs, dtype = torch.float32)
-        )
+        ).item()
         obs, _, done, info = env.step(action)
         test_dur += 1
       test_duration_array.append(test_dur)
@@ -112,19 +113,19 @@ for i in range(train_epoch):
     if os.path.isfile(f'./rl_model/{folder_name}/reward.png'):
       os.remove(f'./rl_model/{folder_name}/reward.png')
 
-    plt.clf()
-    plt.plot(value_loss[:i])
-    plt.ylabel('Loss of value function')
-    plt.title('Value Loss')
-    plt.xlabel('Episodes')
-    plt.savefig(f'./rl_model/{folder_name}/value.png')
+  plt.clf()
+  plt.plot(value_loss[:i])
+  plt.ylabel('Loss of value function')
+  plt.title('Value Loss')
+  plt.xlabel('Episodes')
+  plt.savefig(f'./rl_model/{folder_name}/value.png')
 
-    plt.clf()
-    plt.xlabel('Reward')
-    plt.title('Reward')
-    plt.ylabel('Episodes')
-    plt.plot(reward_graph[:i])
-    plt.savefig(f'./rl_model/{folder_name}/reward.png')
+  plt.clf()
+  plt.xlabel('Reward')
+  plt.title('Reward')
+  plt.ylabel('Episodes')
+  plt.plot(reward_graph[:i])
+  plt.savefig(f'./rl_model/{folder_name}/reward.png')
 
 
   

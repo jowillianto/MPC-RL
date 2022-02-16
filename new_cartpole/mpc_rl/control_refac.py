@@ -1,10 +1,12 @@
 import sys
-
+sys.path.append('..')
 import numpy as np
 
 import casadi as cs
 import os
 from casadi import cos, sin
+from rl.ddpg import DDPGAgent
+import torch
 
 class RLMPC:
   def __init__(self, 
@@ -27,6 +29,8 @@ class RLMPC:
     self._obs_mem     = np.zeros([pred_horizon, obs_size], dtype = np.float32)
     self._act_mem     = np.zeros([pred_horizon, act_size], dtype = np.float32)
     self._cur_act     = np.zeros(act_size, dtype = np.float32)
+
+    self.init_model()
 
   def init_model(self):
     dt              = self._control_dt
@@ -54,7 +58,7 @@ class RLMPC:
     pred_horizon    = self._pred_horizon
     nlp_x           = cs.SX.sym('X', 4, pred_horizon + 1)
     nlp_control_var = cs.SX.sym('C', 1, pred_horizon)
-    nlp_init_value  = cs.SX.sym('P', 4) # 4 Initial State, 4 Target State, 4 RL Coefficient
+    nlp_init_value  = cs.SX.sym('P', 12) # 4 Initial State, 4 Target State, 4 RL Coefficient
     boundary_func   = nlp_x[:, 0] - nlp_init_value[:4]
 
     cost_function   = 0
@@ -63,10 +67,10 @@ class RLMPC:
       end_condition   = model(init_condition, nlp_control_var[:, i - 1])
       boundary_func   = cs.vertcat(boundary_func, nlp_x[:, i] - end_condition)
       for j in range(4):
-        cost_function += nlp_init_value[i + 8] * (end_condition[i, 0] - nlp_init_value[i + 4])**2 
+        cost_function += nlp_init_value[j + 8] * (end_condition[j, 0] - nlp_init_value[j + 4])**2 
     
     # Finalization of NLP
-    optim_vars      = cs.vertcat(nlp_x.reshape((-1, 2)), nlp_control_var.reshape((-1, 1)))
+    optim_vars      = cs.vertcat(nlp_x.reshape((-1, 1)), nlp_control_var.reshape((-1, 1)))
     self._lbx       = cs.DM.zeros(4 * (pred_horizon + 1) + pred_horizon, 1)
     self._ubx       = cs.DM.zeros(4 * (pred_horizon + 1) + pred_horizon, 1)
     self._lbx[0 : pred_horizon+1]   = -2.4
@@ -114,14 +118,17 @@ class RLMPC:
     displacement, velocity, theta, omega  = self._obs_mem[0]
     parameters        = [displacement, velocity, theta, omega, 0, 0, 0, 0, *rl_params]
     pred_horizon      = self._pred_horizon
-    x0                = cs.vertcat(self._obs_mem.flatten().aslist(), [0, 0, 0, 0], self._act_mem.flatten()[1:].aslist(), [0])
-    solution          = self.solver(x0 = x0, lbx = self._lbx, ubx = self._ubx, lbg = self._lbg, ubg = self._ubg, p = parameters)
+    x0                = cs.vertcat(self._obs_mem.flatten().tolist(), [0, 0, 0, 0], self._act_mem.flatten()[1:].tolist(), [0])
+    solution          = self._nlp_solver(x0 = x0, lbx = self._lbx, ubx = self._ubx, lbg = self._lbg, ubg = self._ubg, p = parameters)
     solution_array    = np.array(solution['x'])
     observation_mem   = solution_array[:4 * (pred_horizon + 1)]
-    action_mem        = solution_array[4 * (pred_horizon + 1)]
+    action_mem        = solution_array[4 * (pred_horizon + 1):]
     for i in range(pred_horizon):
       self._obs_mem[i]  = np.array(observation_mem[4 * i : 4 * (i + 1)].flatten(), dtype = np.float32)
       self._act_mem[i]  = np.array(action_mem[i], dtype = np.float32)
+
+  def action(self):
+    return self._act_mem[0]
 
   def model(self, theta : float, omega : float, force : float):
     m = self._pole_mass
@@ -135,3 +142,63 @@ class RLMPC:
     x = (2 * F + m * l * (a * cos(t) - w**2 * sin(t) ) ) / (2 * (m + M) )
     return a, x
 
+class Actor(torch.nn.Module):
+  def __init__(self, 
+    net_width : int = 32, input_size : int = 4, output_size : int = 1
+  ):
+    super().__init__()
+    # self.norm_layer   = torch.nn.BatchNorm1d(input_size)
+    self.first_layer  = torch.nn.Linear(input_size, net_width)
+    self.first_act    = torch.nn.LeakyReLU()
+    self.inter_layer  = torch.nn.Linear(net_width, net_width)
+    self.inter_act    = torch.nn.LeakyReLU()
+    self.final_layer  = torch.nn.Linear(net_width, output_size)
+  def forward(self, x):
+    #x   = self.norm_layer(x)
+    x   = self.first_layer(x)
+    x   = self.first_act(x)
+    x   = self.inter_layer(x)
+    x   = self.inter_act(x)
+    x   = self.final_layer(x)
+    return torch.nn.functional.normalize(x)
+
+class Critic(torch.nn.Module):
+  def __init__(self, 
+    net_width : int = 32, obs_size : int = 4, act_size : int = 1, output_size : int = 1
+  ):
+    super().__init__()
+    self.norm_layer   = torch.nn.BatchNorm1d(obs_size)
+    self.first_layer  = torch.nn.Linear(obs_size + act_size, net_width)
+    self.first_act    = torch.nn.LeakyReLU()
+    self.inter_layer  = torch.nn.Linear(net_width, net_width)
+    self.inter_act    = torch.nn.LeakyReLU()
+    self.final_layer  = torch.nn.Linear(net_width, output_size)
+    self.obs_size     = obs_size
+  def forward(self, obs, action):
+    #x   = self.norm_layer(obs)
+    x   = torch.cat((obs, action), dim = -1)
+    x   = self.first_layer(x)
+    x   = self.first_act(x)
+    x   = self.inter_layer(x)
+    x   = self.inter_act(x)
+    x   = self.final_layer(x)
+    return x
+
+class HighLevelMPC(DDPGAgent):
+  def __init__(
+    self, tau : float, eps : float, gamma : float, actor_lr : float, critic_lr : float, eps_decay : float, mem_size : int
+  ):
+    actor   = Actor
+    actorkwargs   = {
+      'net_width' : 64, 'input_size' : 4, 'output_size' : 4
+    }
+    critic  = Critic
+    critickwargs  = {
+      'net_width' : 64, 'obs_size' : 4, 'output_size' : 1, 'act_size' : 4
+    }
+
+    super().__init__(
+      tau = tau, eps = eps, gamma = gamma, actor_lr = actor_lr, critic_lr = critic_lr, eps_decay = eps_decay, 
+      actor = actor, actorkwargs = actorkwargs, critic = critic, critickwargs = critickwargs, 
+      mem_size = mem_size, obs_size = 4, act_size = 4
+    )

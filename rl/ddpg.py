@@ -34,7 +34,7 @@ class DDPGAgent(Agent):
     self._tactor.eval()
     self._aOptim  = torch.optim.Adam(self._actor.parameters(), lr = actor_lr)
     self._cOptim  = torch.optim.Adam(self._critic.parameters(), lr = critic_lr)
-    self._cLoss   = torch.nn.MSELoss()
+    self._cLoss   = torch.nn.SmoothL1Loss()
     self._eps_dec = eps_decay
   
   def save_state(self, obs : torch.Tensor, n_obs : torch.Tensor, action : torch.Tensor, reward : float, terminal : bool):
@@ -92,7 +92,7 @@ class DDPGAgent(Agent):
     obs   = obs.to(self._device)
     avg   = self._actor(obs.unsqueeze(0))[0]
     act   = torch.normal(avg, std = self._eps)
-    return act.item()
+    return act.to(torch.device('cpu')).detach()
   
   def decay_epsilon(self):
     self._eps *= self._eps_dec
@@ -101,7 +101,7 @@ class DDPGAgent(Agent):
     self._actor.eval()
     obs     = obs.to(self._device)
     action  = self._actor(obs.unsqueeze(0))
-    return action.item()
+    return action.to(torch.device('cpu')).detach()
   
   def decay_epsilon(self):
     self._eps *= self._eps_dec

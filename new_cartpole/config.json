@@ -1,0 +1,6 @@
+{
+  "render"  : true, 
+  "render_every" : 10, 
+  "test_n" : 100,
+  "use_sleep" : false
+}

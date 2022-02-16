@@ -49,6 +49,7 @@ for i in range(eval_n):
     action  = obj.net_action(torch.tensor(obs, dtype = torch.float32))
     obs, rew, done, info = env.step(action)
     steps += 1
+    print(action)
   time_arr.append(steps)
   if abs(obs[2]) > 0.209:
     ang_b += 1
