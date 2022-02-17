@@ -8,7 +8,7 @@ import datetime
 
 env   = ContinuousCartPoleEnv()
 obj   = ContinuousCartpole(
-  mem_size  = 30000, gamma = 0.99, eps_decay = 0.999, eps = 2.0, tau = 5e-4,
+  mem_size  = 30000, gamma = 0.99, eps_decay = 0.9999, eps = 2.0, tau = 5e-4,
   actor_lr  = 1e-4, critic_lr = 1e-4
 )
 
@@ -93,7 +93,7 @@ for i in range(train_epoch):
       done      = False
       while not done:
         if j % 50 == 0:
-          env.render()
+          #env.render()
           pass
         action  = obj.net_action(
           torch.tensor(obs, dtype = torch.float32)
